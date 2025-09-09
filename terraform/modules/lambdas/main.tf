@@ -1,0 +1,11 @@
+module "alfred_ask_function" {
+  source      = "./alfred_ask_function"
+  environment = var.environment
+
+  api_id            = var.api_id
+  api_execution_arn = var.api_execution_arn
+  project_name      = var.project_name
+  knowledge_bucket  = var.knowledge_bucket
+  runtime           = var.runtime
+  aws_region        = var.aws_region
+}
