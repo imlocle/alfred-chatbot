@@ -1,3 +1,4 @@
+from typing import Any, List
 import boto3
 import json
 import os
@@ -15,14 +16,9 @@ class BedrockService:
         )
         self.model_id = os.environ.get("MODEL_ID")
 
-    def ask_alfred(self, question: str, knowledge: str) -> str:
-        system_blocks = [
-            {
-                "text": "You are Alfred, a helpful AI butler who knows everything about Loc Le."
-            },
-            {"text": f"Knowledge Base:\n{knowledge}"},
-        ]
-        messages = [{"role": "user", "content": [{"text": question}]}]
+    def invoke_model(
+        self, system_blocks: List[dict[str, str]], messages: List[dict[str, Any]]
+    ) -> str:
         payload = {
             "system": system_blocks,
             "messages": messages,
@@ -36,7 +32,6 @@ class BedrockService:
         }
 
         try:
-            print(f"question: {question}")
             response = self.client.invoke_model(
                 modelId=self.model_id,
                 contentType="application/json",
@@ -45,6 +40,50 @@ class BedrockService:
             )
             result = json.loads(response["body"].read())
             print(result)
+            resp_messages = result.get("output", {}).get("message", {})
+            if resp_messages:
+                content = resp_messages.get("content", [])
+                for block in content:
+                    if "text" in block:
+                        return block["text"]
+            return "I'm sorry, I don't have an answer."
+        except Exception as e:
+            print(f"[BedrockService] Error: {e}")
+            return "Sorry, Alfred is unavailable right now."
+
+    def invoke_model_with_response_stream(
+        self, system_blocks: List[dict[str, str]], messages: List[dict[str, Any]]
+    ) -> str:
+        payload = {
+            "system": system_blocks,
+            "messages": messages,
+            "inferenceConfig": {
+                "maxTokens": 200,
+                "temperature": 0.2,
+                "topP": 0.9,
+                "topK": 1,
+                "stopSequences": [],
+            },
+        }
+
+        try:
+            response = self.client.invoke_model_with_response_stream(
+                modelId=self.model_id,
+                contentType="application/json",
+                accept="application/json",
+                body=json.dumps(payload),
+            )
+            result = response["body"]
+            print(result)
+            for event in response["body"]:
+                if "chunk" in event:
+                    # Raw bytes from the stream
+                    chunk_bytes = event["chunk"]["bytes"]
+
+                    # Decode to string
+                    text = chunk_bytes.decode("utf-8")
+                    print(text, end="", flush=True)
+
             resp_messages = result.get("output", {}).get("message", {})
             if resp_messages:
                 content = resp_messages.get("content", [])

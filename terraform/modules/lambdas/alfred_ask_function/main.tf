@@ -38,7 +38,8 @@ resource "aws_iam_role_policy" "lambda_policy" {
       {
         Effect = "Allow",
         Action = [
-          "bedrock:InvokeModel"
+          "bedrock:InvokeModel",
+          "bedrock:InvokeModelWithResponseStream",
         ],
         Resource = "*"
       },
@@ -70,6 +71,7 @@ resource "aws_lambda_function" "alfred_ask_lambda" {
   handler       = "handlers.alfred_handler.lambda_handler"
   runtime       = var.runtime
   role          = aws_iam_role.lambda_role.arn
+  timeout       = 30
 
   filename         = "${path.root}/builds/${var.project_name}_ask.zip"
   source_code_hash = filebase64sha256("${path.root}/builds/${var.project_name}_ask.zip")
