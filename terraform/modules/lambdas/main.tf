@@ -1,5 +1,5 @@
-module "alfred_ask_function" {
-  source      = "./alfred_ask_function"
+module "ask_function" {
+  source      = "./ask_function"
   environment = var.environment
 
   api_id            = var.api_id

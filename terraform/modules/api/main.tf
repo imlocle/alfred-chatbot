@@ -3,9 +3,10 @@ resource "aws_apigatewayv2_api" "this" {
   protocol_type = "HTTP"
 
   cors_configuration {
-    allow_headers = ["content-type", "x-amz-date", "authorization", "x-api-key"]
+    allow_headers = ["Content-Type", "X-Amz-Date", "Authorization"]
     allow_methods = ["OPTIONS", "POST"]
-    allow_origins = ["*"]
+    allow_origins = ["http://localhost:5173", "https://imlocle.com", "https://imlocle.github.io"]
+    max_age       = 3600
   }
 }
 

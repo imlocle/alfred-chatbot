@@ -18,7 +18,7 @@ resource "aws_s3_bucket" "knowledge_bucket" {
   bucket = "${var.project_name}-knowledge-bucket"
 }
 
-module "alfred_api" {
+module "api" {
   source       = "./modules/api"
   environment  = var.environment
   project_name = var.project_name
@@ -29,8 +29,8 @@ module "alfred_lambdas" {
   environment = var.environment
   aws_region  = var.aws_region
 
-  api_id            = module.alfred_api.api_id
-  api_execution_arn = module.alfred_api.api_execution_arn
+  api_id            = module.api.api_id
+  api_execution_arn = module.api.api_execution_arn
   project_name      = var.project_name
   knowledge_bucket  = aws_s3_bucket.knowledge_bucket.bucket
   runtime           = var.runtime

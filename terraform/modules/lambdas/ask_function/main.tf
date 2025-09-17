@@ -2,7 +2,7 @@ data "aws_caller_identity" "current" {}
 
 # Lambda Role
 resource "aws_iam_role" "lambda_role" {
-  name = "${var.project_name}_ask-lambda-role"
+  name = "${var.project_name}-ask-lambda-role"
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17",
@@ -62,13 +62,21 @@ resource "aws_iam_role_policy_attachment" "lambda_basic" {
   policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
 }
 
+# resource "aws_apigatewayv2_authorizer" "this" {
+#   api_id          = var.api_id
+#   authorizer_type = "REQUEST"
+#   authorizer_uri  = aws_lambda_function.authorizer.invoke_arn
+#   name            = "${var.project_name}_authorizer"
+# }
+
+
 #####################################
 # Lambda Function
 #####################################
 
 resource "aws_lambda_function" "alfred_ask_lambda" {
   function_name = "${var.project_name}_ask"
-  handler       = "handlers.alfred_handler.lambda_handler"
+  handler       = "handlers.ask_handler.lambda_handler"
   runtime       = var.runtime
   role          = aws_iam_role.lambda_role.arn
   timeout       = 30
@@ -88,6 +96,20 @@ resource "aws_lambda_function" "alfred_ask_lambda" {
     }
   }
 }
+
+# resource "aws_lambda_function" "authorizer" {
+#   function_name    = "${var.project_name}_authorizer"
+#   handler          = "handlers.authorizer.lambda_handler"
+#   runtime          = var.runtime
+#   filename         = "${path.root}/builds/${var.project_name}_authorizer.zip"
+#   role             = aws_iam_role.lambda_role.arn
+#   source_code_hash = filebase64sha256("${path.root}/builds/${var.project_name}_authorizer.zip")
+
+#   layers = [aws_lambda_layer_version.common_dependencies.arn]
+#   depends_on = [null_resource.force_lambda_update,
+#     aws_lambda_layer_version.common_dependencies
+#   ]
+# }
 
 #####################################
 # Lambda Layer
@@ -126,10 +148,12 @@ resource "aws_apigatewayv2_integration" "alfred_ask_integration" {
   payload_format_version = "2.0"
 }
 
-resource "aws_apigatewayv2_route" "promoted_route" {
+resource "aws_apigatewayv2_route" "ask_route" {
   api_id    = var.api_id
   route_key = "POST /ask"
   target    = "integrations/${aws_apigatewayv2_integration.alfred_ask_integration.id}"
+  # authorization_type = "CUSTOM"
+  # authorizer_id      = aws_apigatewayv2_authorizer.this.id
 }
 
 
@@ -144,4 +168,7 @@ resource "null_resource" "force_lambda_update" {
   provisioner "local-exec" {
     command = "touch ${path.root}/builds/${var.project_name}_ask.zip"
   }
+  # provisioner "local-exec" {
+  #   command = "touch ${path.root}/builds/${var.project_name}_authorizer.zip"
+  # }
 }
