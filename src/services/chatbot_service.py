@@ -1,11 +1,11 @@
 from aws.bedrock_service import BedrockService
 
 
-class AlfredService:
-    def __init__(self):
-        self.bedrock_service = BedrockService()
+class ChatbotService:
+    def __init__(self, bedrock_service=None):
+        self.bedrock_service = bedrock_service or BedrockService()
 
-    def ask(self, question: str, knowledge: str) -> str:
+    def ask_alfred(self, question: str, knowledge: str) -> str:
         print(f"Q: {question}")
         system_blocks = [
             {
