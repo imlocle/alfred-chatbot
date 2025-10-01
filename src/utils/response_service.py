@@ -1,7 +1,9 @@
 import json
 
+from utils.constants import DOMAIN_URL
 
-def get_headers(cors_origin: str = "https://imlocle.com") -> dict[str, str]:
+
+def get_headers(cors_origin: str = DOMAIN_URL) -> dict[str, str]:
     return {
         "Content-Type": "application/json",
         "Access-Control-Allow-Origin": cors_origin,
@@ -26,5 +28,5 @@ def error_response(
     return {
         "statusCode": status_code,
         "headers": headers,
-        "body": json.dumps({"reply": f"Error: {message}"}),
+        "body": json.dumps({"reply": message}),
     }
