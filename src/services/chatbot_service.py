@@ -1,17 +1,19 @@
 from aws.bedrock_service import BedrockService
+from repositories.chatbot_repository import ChatbotRepository
 
 
 class ChatbotService:
-    def __init__(self, bedrock_service=None):
+    def __init__(
+        self,
+        bedrock_service: BedrockService = None,
+        chatbot_repository: ChatbotRepository = None,
+    ):
         self.bedrock_service = bedrock_service or BedrockService()
+        self.chatbot_repository = chatbot_repository or ChatbotRepository()
 
-    def ask_alfred(self, question: str, knowledge: str) -> str:
+    def ask(self, user_id: str, question: str, current_date: str) -> str:
         print(f"Q: {question}")
-        system_blocks = [
-            {
-                "text": "You are Alfred, a helpful AI butler named after Bruce Wayne's butler Alfred Pennyworth, who knows everything about Loc Le."
-            },
-            {"text": f"Knowledge Base:\n{knowledge}"},
-        ]
-        messages = [{"role": "user", "content": [{"text": question}]}]
-        return self.bedrock_service.invoke_model(system_blocks, messages)
+        self.chatbot_repository.check_usage(user_id=user_id, current_date=current_date)
+        response = self.chatbot_repository.ask(question=question)
+        self.chatbot_repository.update_usage(user_id=user_id, current_date=current_date)
+        return response
