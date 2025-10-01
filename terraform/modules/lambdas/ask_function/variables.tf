@@ -25,3 +25,11 @@ variable "api_execution_arn" {
 variable "aws_region" {
   type = string
 }
+
+variable "alfred_usage_tracker_table_name" {
+  type = string
+}
+
+variable "alfred_usage_tracker_table_arn" {
+  type = string
+}

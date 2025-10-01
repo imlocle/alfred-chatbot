@@ -51,6 +51,15 @@ resource "aws_iam_role_policy" "lambda_policy" {
           "logs:PutLogEvents"
         ],
         Resource = "arn:aws:logs:*:*:*"
+      },
+      {
+        Effect = "Allow",
+        Action = [
+          "dynamodb:GetItem",
+          "dynamodb:UpdateItem",
+          "dynamodb:PutItem"
+        ],
+        Resource = var.alfred_usage_tracker_table_arn
       }
     ]
   })
@@ -91,8 +100,9 @@ resource "aws_lambda_function" "alfred_ask_lambda" {
 
   environment {
     variables = {
-      KNOWLEDGE_BUCKET = var.knowledge_bucket
-      MODEL_ID         = "arn:aws:bedrock:${var.aws_region}:${data.aws_caller_identity.current.account_id}:inference-profile/us.amazon.nova-lite-v1:0"
+      ALFRED_USAGE_TRACKER_TABLE = var.alfred_usage_tracker_table_name
+      KNOWLEDGE_BUCKET           = var.knowledge_bucket
+      MODEL_ID                   = "arn:aws:bedrock:${var.aws_region}:${data.aws_caller_identity.current.account_id}:inference-profile/us.amazon.nova-lite-v1:0"
     }
   }
 }
@@ -152,8 +162,6 @@ resource "aws_apigatewayv2_route" "ask_route" {
   api_id    = var.api_id
   route_key = "POST /ask"
   target    = "integrations/${aws_apigatewayv2_integration.alfred_ask_integration.id}"
-  # authorization_type = "CUSTOM"
-  # authorizer_id      = aws_apigatewayv2_authorizer.this.id
 }
 
 
@@ -168,7 +176,4 @@ resource "null_resource" "force_lambda_update" {
   provisioner "local-exec" {
     command = "touch ${path.root}/builds/${var.project_name}_ask.zip"
   }
-  # provisioner "local-exec" {
-  #   command = "touch ${path.root}/builds/${var.project_name}_authorizer.zip"
-  # }
 }
