@@ -49,14 +49,16 @@ class BedrockService:
                 body=json.dumps(payload),
             )
             result = json.loads(response["body"].read())
-            print(result)
+            # print(f"Usage: {result.get('usage')}")
             resp_messages = result.get("output", {}).get("message", {})
             if resp_messages:
                 content = resp_messages.get("content", [])
                 for block in content:
                     if "text" in block:
-                        return block["text"]
-            return "I'm sorry, I don't have an answer."
+                        answer: str = block.get("text")
+                        print(f"A: {answer}")
+                        return answer
+            return "Sorry, I don't have an answer."
         except Exception as e:
             print(f"[BedrockService] Error: {e}")
             return "Sorry, Alfred is unavailable right now."

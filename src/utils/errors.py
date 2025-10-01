@@ -33,3 +33,10 @@ class CORSOriginError(Exception):
         self.origin = origin
         self.http_status = 403  # Forbidden
         self.headers = get_headers()
+
+
+class RateLimitError(Exception):
+    def __init__(self, message="Rate limit exceeded. Please try again tomorrow."):
+        super().__init__(message)
+        self.http_status = 429
+        self.headers = get_headers()
