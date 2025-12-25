@@ -29,8 +29,8 @@ module "api" {
   project_name = var.project_name
 }
 
-module "alfred_lambdas" {
-  source      = "./modules/lambdas"
+module "lambda" {
+  source      = "./modules/lambda"
   environment = var.environment
   aws_region  = var.aws_region
 

@@ -33,3 +33,7 @@ variable "alfred_usage_tracker_table_name" {
 variable "alfred_usage_tracker_table_arn" {
   type = string
 }
+
+variable "lambda_name" {
+  type = string
+}
