@@ -220,3 +220,4 @@ terraform/builds/*.zip
 *.zip
 
 knowledge_base.json
+.DS_Store

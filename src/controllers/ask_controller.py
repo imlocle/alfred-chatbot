@@ -26,7 +26,11 @@ class AskController:
             body = json.loads(body)
 
         question: str = body.get("question", "")
+        print(f"Q: {question}")
         if not question:
             raise InvalidQuestionError(question=question)
 
-        return self.chatbot_service.ask(user_id, question, current_date)
+        answer = self.chatbot_service.ask(user_id, question, current_date)
+        print(f"A: {answer}")
+
+        return answer
