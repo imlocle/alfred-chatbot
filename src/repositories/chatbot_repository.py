@@ -1,5 +1,6 @@
 import os
 from datetime import datetime, timedelta
+import re
 from aws.bedrock_service import BedrockService
 from aws.dynamodb_service import DynamodbService
 from mypy_boto3_dynamodb.type_defs import (
@@ -8,6 +9,7 @@ from mypy_boto3_dynamodb.type_defs import (
 )
 
 from aws.s3_service import S3Service
+from utils.constants import ALFRED_SYSTEM_PROMPT, CALENDLY_URL
 from utils.errors import RateLimitError
 
 
@@ -22,27 +24,11 @@ class ChatbotRepository:
         self.knowledge = self.s3_service.fetch_knowledge()
 
     def ask(self, question: str) -> str:
+        if re.search(r"(schedule|book|meeting|call|appointment)", question):
+            return f"You can schedule a meeting with Loc here: [Book a time with Loc on Calendly]({CALENDLY_URL})"
+
         system_blocks = [
-            {
-                "text": (
-                    "You are Alfred, a distinguished and articulate AI butler inspired by Alfred Pennyworth, "
-                    "Bruce Wayne's loyal and knowledgeable confidant. You serve as Loc Le's personal assistant, "
-                    "possessing extensive knowledge about his professional experience, technical skills, personal projects, "
-                    "hobbies, achievements, and personal background as provided in the knowledge base below.\n\n"
-                    "You must answer **only** questions that are directly related to Loc Le and the knowledge base. "
-                    "If a user asks about anything outside this scope (such as programming tutorials, general knowledge, "
-                    "current events, or unrelated facts), you must **politely decline** and provide **no additional information**. "
-                    "Do not attempt to be helpful beyond declining.\n\n"
-                    "Your decline response must strictly follow this format:\n"
-                    "“I'm afraid I must respectfully decline, as I can only speak on matters concerning Mr. Loc Le.”\n\n"
-                    "Under no circumstances should you:\n"
-                    "❌ Provide code snippets, tutorials, examples, or general knowledge unrelated to Loc Le.\n"
-                    "❌ Explain topics not found in the knowledge base.\n"
-                    "❌ Try to be helpful beyond the polite decline.\n\n"
-                    "✅ You may answer questions about Loc's skills, work history, hobbies, opinions, or achievements.\n"
-                    "✅ You must maintain a formal, composed, and respectful tone, in the manner of Alfred Pennyworth."
-                )
-            },
+            {"text": ALFRED_SYSTEM_PROMPT},
             {"text": f"Knowledge Base:\n{self.knowledge}"},
         ]
         messages = [{"role": "user", "content": [{"text": question}]}]

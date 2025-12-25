@@ -7,7 +7,7 @@ from mypy_boto3_dynamodb.type_defs import (
     TableAttributeValueTypeDef,
     DeleteItemInputTableDeleteItemTypeDef,
 )
-from typing import Any, Dict
+from typing import Any, Dict, List
 import boto3
 from botocore.exceptions import ClientError
 
@@ -22,6 +22,19 @@ class DynamodbService:
         request: dict[str, any], default: dict[str, any] = dict()
     ) -> dict[str, Any]:
         return default | request
+
+    def batch_get(self, request: Dict[str, Any]) -> List[Dict[str, Any]]:
+        try:
+            response = self.ddb_resource.batch_get_item(**request)
+        except ClientError as err:
+            raise
+
+        items = []
+
+        for table_name, table_items in response.get("Responses", {}).items():
+            items.extend(table_items)
+
+        return items
 
     def get(self, request: GetItemInputTableGetItemTypeDef) -> dict:
         get_request = self._enhance_request(request, {"ReturnConsumedCapacity": "NONE"})

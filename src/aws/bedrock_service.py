@@ -56,7 +56,6 @@ class BedrockService:
                 for block in content:
                     if "text" in block:
                         answer: str = block.get("text")
-                        print(f"A: {answer}")
                         return answer
             return "Sorry, I don't have an answer."
         except Exception as e:
