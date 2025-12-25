@@ -1,23 +1,20 @@
-# Usage:
-# In order the switch between environments, you can specify the ENV variable.
-# run make clean first!!!!
-
-# $ make deploy ENV=dev
-# $ make deploy ENV=prod
-# $ make deploy            # defaults to dev
-# $ make clean             # remove all build artifacts
-
-.PHONY: deploy zip-all zip-layer zip-alfredask clean generate-backend-config
+.PHONY: deploy clean zip-all zip-layer zip-alfredask clean generate-backend-config
 
 ENV ?= dev
+PROJECT_NAME = alfred
+REGION = us-west-1
+
 BUILD_DIR = terraform/builds
 LAYER_ZIP = $(BUILD_DIR)/python.zip
-ALFRED_ASK = $(BUILD_DIR)/alfred_ask.zip
+
+LAMBDAS = ask-alfred
+
 BACKEND_CONFIG_TMP = terraform/backend.auto.hcl
+PYTHON_LAYER_IMAGE = public.ecr.aws/sam/build-python3.13
 
 # Clean all build artifacts
 clean:
-	rm -f $(BUILD_DIR)/*.zip lambda_layer/python.zip terraform/backend.auto.hcl
+	rm -f $(BUILD_DIR)/*.zip $(BACKEND_CONFIG_TMP)
 	rm -rf lambda_layer/python
 
 # Ensure build directory exists
@@ -32,26 +29,30 @@ zip-layer: $(BUILD_DIR)
 		--platform linux/amd64 \
 		-v $(CURDIR)/src:/var/task \
 		-v $(CURDIR)/lambda_layer/python:/lambda/python \
-		public.ecr.aws/sam/build-python3.13 \
+		$(PYTHON_LAYER_IMAGE) \
 		/bin/sh -c "pip3 install -r /var/task/requirements.txt -t /lambda/python --no-cache-dir"
 	cd lambda_layer && zip -r ../$(LAYER_ZIP) python > /dev/null
 
 # Zip full src directory for each Lambda
-zip-alfredask: $(BUILD_DIR)
-	cd src && zip -r ../$(ALFRED_ASK) . > /dev/null
+zip-%: $(BUILD_DIR)
+	cd src && zip -r ../$(BUILD_DIR)/${PROJECT_NAME}-$*-$(ENV).zip . > /dev/null
 
 # Run all zipping steps
-zip-all: zip-layer zip-alfredask
+zip-all: zip-layer $(LAMBDAS:%=zip-%)
 
 # Generate dynamic backend config file
 generate-backend-config:
-	@echo "bucket = \"alfred-terraform-state-bucket\"" > $(BACKEND_CONFIG_TMP)
-	@echo "key    = \"alfred/$(ENV)/terraform.tfstate\"" >> $(BACKEND_CONFIG_TMP)
-	@echo "region = \"us-west-1\"" >> $(BACKEND_CONFIG_TMP)
+	@echo "bucket = \"$(PROJECT_NAME)-terraform-state-bucket\"" > $(BACKEND_CONFIG_TMP)
+	@echo "key    = \"$(PROJECT_NAME)/$(ENV)/terraform.tfstate\"" >> $(BACKEND_CONFIG_TMP)
+	@echo "region = \"$(REGION)\"" >> $(BACKEND_CONFIG_TMP)
 
-# Deploy with Terraform
-deploy: zip-all generate-backend-config
-	@echo "🚀 Deploying to environment: $(ENV)"
+terraform-init:
 	@rm -rf terraform/.terraform
-	terraform -chdir=terraform init -backend-config=backend.auto.hcl
-	terraform -chdir=terraform apply -var="environment=$(ENV)"
+	terraform -chdir=terraform init -backend-config=$(notdir $(BACKEND_CONFIG_TMP))
+
+terraform-apply:
+	terraform -chdir=terraform apply -var="environment=$(ENV)" -auto-approve
+
+# Deploy
+deploy: zip-all generate-backend-config terraform-init terraform-apply
+	@echo "🚀 Deployed $(PROJECT_NAME) to environment: $(ENV)"

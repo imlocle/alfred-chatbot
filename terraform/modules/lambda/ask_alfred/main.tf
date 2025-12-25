@@ -1,8 +1,14 @@
 data "aws_caller_identity" "current" {}
 
+locals {
+  name          = "${var.project_name}-${var.lambda_name}"
+  function_name = "${local.name}-${var.environment}"
+  handler_path  = replace(var.lambda_name, "-", "_")
+}
+
 # Lambda Role
 resource "aws_iam_role" "lambda_role" {
-  name = "${var.project_name}-ask-lambda-role"
+  name = "${local.name}-lambda-role-${var.environment}"
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17",
@@ -18,7 +24,7 @@ resource "aws_iam_role" "lambda_role" {
 
 # Lambda Policy
 resource "aws_iam_role_policy" "lambda_policy" {
-  name = "${var.project_name}_ask-lambda-policy"
+  name = "${local.name}lambda-policy-${var.environment}"
   role = aws_iam_role.lambda_role.id
   policy = jsonencode({
     Version = "2012-10-17",
@@ -59,7 +65,7 @@ resource "aws_iam_role_policy" "lambda_policy" {
           "dynamodb:UpdateItem",
           "dynamodb:PutItem"
         ],
-        Resource = var.alfred_usage_tracker_table_arn
+        Resource = ["${var.alfred_usage_tracker_table_arn}", "${var.alfred_usage_tracker_table_arn}/*"]
       }
     ]
   })
@@ -71,27 +77,20 @@ resource "aws_iam_role_policy_attachment" "lambda_basic" {
   policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
 }
 
-# resource "aws_apigatewayv2_authorizer" "this" {
-#   api_id          = var.api_id
-#   authorizer_type = "REQUEST"
-#   authorizer_uri  = aws_lambda_function.authorizer.invoke_arn
-#   name            = "${var.project_name}_authorizer"
-# }
-
 
 #####################################
 # Lambda Function
 #####################################
 
-resource "aws_lambda_function" "alfred_ask_lambda" {
-  function_name = "${var.project_name}_ask"
-  handler       = "handlers.ask_handler.lambda_handler"
+resource "aws_lambda_function" "this" {
+  function_name = local.function_name
+  handler       = "handlers.${local.handler_path}.lambda_handler"
   runtime       = var.runtime
   role          = aws_iam_role.lambda_role.arn
   timeout       = 30
 
-  filename         = "${path.root}/builds/${var.project_name}_ask.zip"
-  source_code_hash = filebase64sha256("${path.root}/builds/${var.project_name}_ask.zip")
+  filename         = "${path.root}/builds/${local.function_name}.zip"
+  source_code_hash = filebase64sha256("${path.root}/builds/${local.function_name}.zip")
 
   layers = [aws_lambda_layer_version.common_dependencies.arn]
   depends_on = [null_resource.force_lambda_update,
@@ -107,27 +106,13 @@ resource "aws_lambda_function" "alfred_ask_lambda" {
   }
 }
 
-# resource "aws_lambda_function" "authorizer" {
-#   function_name    = "${var.project_name}_authorizer"
-#   handler          = "handlers.authorizer.lambda_handler"
-#   runtime          = var.runtime
-#   filename         = "${path.root}/builds/${var.project_name}_authorizer.zip"
-#   role             = aws_iam_role.lambda_role.arn
-#   source_code_hash = filebase64sha256("${path.root}/builds/${var.project_name}_authorizer.zip")
-
-#   layers = [aws_lambda_layer_version.common_dependencies.arn]
-#   depends_on = [null_resource.force_lambda_update,
-#     aws_lambda_layer_version.common_dependencies
-#   ]
-# }
-
 #####################################
 # Lambda Layer
 #####################################
 
 resource "aws_lambda_layer_version" "common_dependencies" {
   filename            = "${path.root}/builds/python.zip"
-  layer_name          = "${var.project_name}-common-deps"
+  layer_name          = "${local.name}-common-deps"
   compatible_runtimes = [var.runtime]
 
   lifecycle {
@@ -145,23 +130,23 @@ resource "aws_lambda_layer_version" "common_dependencies" {
 resource "aws_lambda_permission" "allow_apigw" {
   statement_id  = "AllowAPIGatewayInvoke"
   action        = "lambda:InvokeFunction"
-  function_name = aws_lambda_function.alfred_ask_lambda.arn
+  function_name = aws_lambda_function.this.arn
   principal     = "apigateway.amazonaws.com"
   source_arn    = "${var.api_execution_arn}/*/*"
 }
 
-resource "aws_apigatewayv2_integration" "alfred_ask_integration" {
+resource "aws_apigatewayv2_integration" "this" {
   api_id                 = var.api_id
   integration_type       = "AWS_PROXY"
-  integration_uri        = aws_lambda_function.alfred_ask_lambda.invoke_arn
+  integration_uri        = aws_lambda_function.this.invoke_arn
   integration_method     = "POST"
   payload_format_version = "2.0"
 }
 
-resource "aws_apigatewayv2_route" "ask_route" {
+resource "aws_apigatewayv2_route" "this" {
   api_id    = var.api_id
   route_key = "POST /ask"
-  target    = "integrations/${aws_apigatewayv2_integration.alfred_ask_integration.id}"
+  target    = "integrations/${aws_apigatewayv2_integration.this.id}"
 }
 
 
@@ -174,6 +159,6 @@ resource "null_resource" "force_lambda_update" {
   }
 
   provisioner "local-exec" {
-    command = "touch ${path.root}/builds/${var.project_name}_ask.zip"
+    command = "touch ${path.root}/builds/${local.function_name}.zip"
   }
 }
